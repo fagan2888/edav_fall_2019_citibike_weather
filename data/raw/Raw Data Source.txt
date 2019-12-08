@@ -1,0 +1,3 @@
+Yellow Cab raw data can downloaded from below link, we have used Nov 2018 data for this project.
+
+https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page
