@@ -1,0 +1,366 @@
+---
+author: Harish Visweswaran, Phani Valasa, Rohit Dalal, Venkat Gangireddy
+title: "Weather Impact on Citibike Ridership"
+output: 
+  html_document:
+    code_folding: hide
+editor_options:
+  chunk_output_type: console
+---
+```{r, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = TRUE)
+```
+
+
+## 1. Introduction
+
+Human mobility is NYC is complex and dynamically changing. In the past couple of years, bike-sharing has taken a major role in the transportation network of big cities as an alternative way of getting around the city. Prior to these times, taxi service was the primary ground transportation. Weather plays a key role in influencing the mode of commute. Several weather variables, including precipitation, sunshine, snow, wind speed and temperature have been shown to influence participation in bicycling. 
+
+Bicycling is a widely used form of physical activity. It has been linked to lower risks of cardiovascular disease, diabetes, cancer, hypertension, obesity and depression. Analyzing the impact of weather on bike ridership and taxi service, would help to understand the NYC commuter physical acitivity. It is also important for the Citi Bike business and for policymakers to be more aware of how individuals behave when they expect certain weather conditions and if this plays a role in individuals finding other forms of transportation that does not rely on being outdoors while commuting. This motivated us to further dig deep on this subject and answer the following:
+
+1. What is the general ridership pattern for citibike rides in the New York City area through different months of the year 2018?
+
+2. What is the effect of weather on citibike ridership volume in NYC ? 
+
+3. How does weather impact the duration of the rides? Do people only opt for shorter rides during cold/rainy or adverse weather or is the length of the ride not affected?
+
+4. Do we see a relationship between citibike ridership in NYC and NYC taxi ridership? Does weather affect their relationship?
+
+#### Team (in alphabetical order)
+
+1. Harish Babu Visweswaran (hv2197)
+2. Phani Valasa (pkv2103)
+3. Rohit Dalal (rd2805)
+4. Venkat Gangireddy (vrg2114)  
+
+All of us collabrated together on formalizing the questions and the overall layout of the project. Three of us were assigned to the discovery, understanding, ingestion and analysis of the appropriate portion of the datasets. Phani ingested and explored Citibike data, Harish worked on the Weather dataset and Rohit focused on ingesting and analyzing Yellow Cab data and putting together final report by working along with others. Venkat worked on the development of the shinny app.
+
+We tried to distribute the project work evenly among all the team members.
+
+#### Github Repo
+
+https://github.com/harish-cu/edav_fall_2019_citibike_weather
+
+
+## 2. Data Sources
+
+Three datasets have been used to support our analysis. In an effort to streamline our effort, we have focused on NYC Manhattan borough data and also filtered out any column that would be unhelpful in answering our specific questions.
+
+**1. Citibike:** Citibike ridership data is available as a monthly zipped .csv file on the citibike website: https://www.citibikenyc.com/system-data. We have used data for entire calendar year 2018, below have been identied as key data elements after prepping up data for analysis.
+
+* Ride Date
+* Ride Hour
+* Start Station
+* Geo-Codes (Long & Lat)
+* Total Rides
+* Min Ride Duration
+* Max Ride Duration
+* Avg Ride Duration
+
+**2. Yellow Cab:** Yellow Cab trips data is also available as a monthly .csv file on NYC, Taxi & Limousine Commission official website: https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page. Taxi zone mapping .csv file can also be obtained from here. Due to the extremly large volume of Yellow cab trips for calendar year 2018 (112 M records), we decided to use data for Nov 2018. Below have been identied as key data elements after prepping up data for analysis.
+
+* Pickup Date
+* Pickup Hour
+* Pickup Location
+* Zone
+* Total Trips
+* Min Trip Duration
+* Max Trip Duration
+* Avg Trip Duration
+
+**3. Weather:** Weather data is obtained as .csv file from NOAA website :https://www.ncdc.noaa.gov/. In order to obtain the dataset, follow below steps:
+
+* Go to https://www.ncdc.noaa.gov/cdo-web/search
+* For the dropdown *Select Weather Observation Type/Dataset, choose **Daily Summaries*
+* For the dropdown *Select Date Range*, choose the appropriate Date Range. For this analysis, we used the data for the entire calendar year 2018
+* For the dropdown *Search For, select **Stations*
+* For the dropdown *Enter a Search Term, enter **JFK* in order to search for the station at JFK INTERNATIONAL AIRPORT
+* This will take you to a Map View focused on the weather station at JFK. Either use the side bar to select the station and add the data to cart or click on the JFK station pin on the map and hit the button *add to cart*.
+* Go to the cart and select the CSV version of the file for downloads and then hit *Continue*
+* In the next screen, select all the fields under *Station Detail & Data Flag Options* and under *Select data types for custom output* and then hit *Continue*
+* In the following screen, enter your email address and hit *Submit Order* to receive the file. The file is usually processed and sent in a couple of minutes
+
+
+## 3. Data Transformation
+
+```{r}
+library(tidyverse)
+library(GGally)
+library(vcd)
+library(extracat)
+library(skimr)
+library(anytime)
+library(grid)
+library(lubridate)
+library(parcoords)
+``` 
+
+Using raw data files from each source described earlier, below code generates summary data for Yellow Cab, Citibike and Weather. Summary output for each is stored as .csv file, files can be downloaded from our project github repo.
+
+
+#### Yellow Cab
+
+* Merged Yellow Cab data with taxi zones to map pickup and dropoff locations.
+
+```{r}
+# Raw Data
+df_data_yc_nov <- read_csv(file="~/Documents/YellowCab_2018_11.csv")
+df_taxi_zone <- read_csv(file="~/Documents/YellowCab_Taxi_Zones.csv")
+
+# Merge
+df_data_yc_select <- df_data_yc_nov[,c('tpep_pickup_datetime','tpep_dropoff_datetime', 'PULocationID','DOLocationID', 'trip_distance')]
+df_data_yc_select <- setNames(df_data_yc_select, c("Pickup_Time","Dropoff_Time","Pickup_Loc", "Dropoff_Loc", "Distance"))
+df_data_yc_merge<- merge(df_data_yc_select, df_taxi_zone, by="Pickup_Loc")
+```
+
+* Cleaned data by excluding invalid records which are not associated with the month of November.
+
+```{r}
+# Exclude data before 11/01/2018 (320 Records) and after 12/01/2018 (103 Records) from Nov file
+df_data_yc_merge <- filter(df_data_yc_merge, Pickup_Time > as.Date("2018-11-01"))
+df_data_yc_merge <- filter(df_data_yc_merge, Pickup_Time < as.Date("2018-12-01"))
+```
+
+* Summarized and saved in .csv file
+
+```{r}
+# Calculate additional columns and save the summary output in a CSV file
+df_data_yc_merge<- df_data_yc_merge %>%
+  mutate(Duration = as.numeric(Dropoff_Time - Pickup_Time)) %>%
+  mutate(Pickup_Date = date(Pickup_Time)) %>%
+  mutate(Pickup_Hour = hour(Pickup_Time)) %>%
+  select(Pickup_Date, Pickup_Hour, Pickup_Loc, Zone, Distance, Duration)
+
+# Summarize
+df_data_yc_grp <- df_data_yc_merge %>%
+  group_by(Pickup_Date, Pickup_Hour, Pickup_Loc, Zone) %>%
+  summarise(min_duration=min(Duration), max_duration =max(Duration), avg_duration=mean(Duration),yc_trip_count=n())
+
+# Save summary output in a CSV file
+write.csv(df_data_yc_grp, file="~/Documents/YellowCab_2018_11_Summary.csv", row.names=FALSE)
+```
+
+
+#### Citibike
+
+Below function reads all monthly citibike raw data files for 2018 and combines them to create summary reports at date and date + gender level. **Code has been commented out while rendering HTML as it takes long time to process large size raw data files.**
+
+```{r}
+# # Summarize the data for the 2018 datasets at the date level.
+# summary <- function(filename){
+#   df_data <- read.csv(file = filename)
+#   df_grp <- df_data %>%
+#   mutate(Date = date(starttime)) %>%
+#   mutate(start.station.id = as.character(start.station.id)) %>%
+#   group_by(Date, start.station.id, start.station.latitude, start.station.longitude) %>%
+#   summarise(min_duration=min(tripduration), max_duration =max(tripduration), avg_duration=mean(tripduration),trip_count=n()) %>%
+#   ungroup() %>%
+#   select(Date, start.station.id, start.station.latitude, start.station.longitude,min_duration,max_duration, avg_duration,trip_count)
+# return(df_grp)
+# }
+# 
+# # Summarize the data for the 2018 datasets at the date and gender level.
+# summary_age <- function(filename){
+#   df_data <- read.csv(file = filename)
+#   df_grp <- df_data %>%
+#   mutate(startDate = as.Date(starttime)) %>%
+#   mutate(date = date(starttime)) %>%
+#   mutate(age = (floor((2018-birth.year)/10))*10 ) %>%
+#   group_by(date, gender, age) %>%
+#   summarise(min_duration=min(tripduration), max_duration =max(tripduration), avg_duration=mean(tripduration),trip_count=n()) %>%
+#   ungroup() %>%
+#   select(date, gender, age,min_duration,max_duration, avg_duration,trip_count)
+# return(df_grp)
+# }
+# 
+# # Directory where raw files are stored
+# mypath = "~/Documents/"
+# filenames <- list.files(path=mypath, full.names=TRUE)
+# 
+# datalist <- lapply(filenames, function(x){summary(x)})
+# datalist1 <- datalist %>% reduce(bind_rows)
+# write.csv(datalist1,'~/Documents/2018-citibike-summarydata.csv')
+# 
+# datalist_age <- lapply(filenames, function(x){summary_age(x)})
+# datalist_age1 <- datalist_age %>% reduce(bind_rows)
+# write.csv(datalist_age1,'~/Documents/2018-citibike-summarydata-age-gender.csv')
+```
+
+
+#### Weather
+
+* Weather data downloaded from the source is already summarized at daily level, no further action needed. 
+
+
+## 4. Missing Values
+
+For all of the 3 datasets, we **DIDN'T** find any missing values in the raw datafiles obtained from the source. However, we identifed some outliers in the Citibike data related to rider's age.
+
+#### Yellow Cab
+
+```{r}
+yc_raw <- read.csv(file="~/Documents/YellowCab_2018_11.csv")
+colSums(is.na(yc_raw)) %>% sort(decreasing=TRUE)
+```
+
+#### Weather
+
+```{r}
+weather_raw <- read.csv(file="~/Documents/2018_Weather_NYC.csv")
+colSums(is.na(weather_raw)) %>% sort(decreasing=TRUE)
+```
+
+#### Citibike
+
+```{r}
+cb_raw <- read.csv(file="~/Documents/2018-citibike-tripdata.csv")
+colSums(is.na(cb_raw)) %>% sort(decreasing=TRUE)
+```
+
+```{r}
+# Citibike - Age outliers
+cb_raw_with_age <- cb_raw %>%
+  mutate(age = 2018-birth.year)
+
+ggplot(data=cb_raw_with_age) +
+  geom_boxplot(mapping=aes(x="", y=age)) +
+    labs(title = "Age Boxplot of Citibike Riders", 
+       x = "", 
+       y = "Age") 
+```
+
+
+## 5. Results
+
+We read summary datafiles created earlier and further aggregates the data or even merge two or more datesets to help support our analysis to gain some preliminary insights into our questions.
+
+```{r}
+yc_summary_nov = read_csv(file="~/Documents/YellowCab_2018_11_Summary.csv")
+weather_nyc = read_csv(file="~/Documents/2018_Weather_NYC.csv")
+cb_summary = read_csv(file="~/Documents/2018-citibike-summarydata.csv")
+
+names(yc_summary_nov)[1]<-"DATE"
+names(cb_summary)[2]<-"DATE"
+
+weather_nyc$DATE <- mdy(weather_nyc$DATE)
+
+weather_nyc <- weather_nyc %>% select('DATE', 'PRCP', 'TAVG', 'TMAX' , 'TMIN', 'SNOW', 'SNWD', 'AWND')
+weather_nyc_nov <- weather_nyc %>% filter(DATE>=as.Date('2018-11-01') & DATE< as.Date('2018-12-01'))
+
+# Further aggregate the KPIs at Date Level for Yellow Cab Nov Summary data
+# Yellow Cab
+yc_summary_nov <- yc_summary_nov %>% 
+  mutate(avg_duration = avg_duration/60,min_duration = min_duration/60,max_duration = max_duration/60);
+
+yc_summary_daily_nov <- yc_summary_nov %>%
+  group_by(DATE) %>%
+  summarise(min_duration=min(min_duration), max_duration =max(max_duration), avg_duration=mean(avg_duration), YC_TRIP_COUNT=sum(yc_trip_count))
+
+# Further aggregate the KPIs at Date Level for Citibike
+# Citibike
+cb_summary <- cb_summary %>% 
+  mutate(avg_duration = avg_duration/60,min_duration = min_duration/60,max_duration = max_duration/60);
+
+# For entire 2018
+cb_summary_daily <- cb_summary %>%
+  group_by(DATE) %>%
+  summarise(min_duration=min(min_duration), max_duration =max(max_duration), avg_duration=mean(avg_duration), CB_TRIP_COUNT=sum(trip_count))
+
+# For Nov
+cb_summary_daily_nov <- cb_summary %>% 
+  filter(DATE>=as.Date('2018-11-01') & DATE< as.Date('2018-12-01')) %>%
+  group_by(DATE) %>%
+  summarise(min_duration=min(min_duration), max_duration =max(max_duration), avg_duration=mean(avg_duration), CB_TRIP_COUNT=sum(trip_count))
+```
+
+
+
+```{r}
+# Merge Citibike & Weather Data
+cb_weather_merge<- merge(cb_summary_daily, weather_nyc, by="DATE")
+
+cb_weather_merge[,c('PRCP','CB_TRIP_COUNT','TAVG','SNOW')] %>% 
+  parcoords(rownames = F , brushMode = "1D-axes", reorderable = T, queue = T, alpha=0.5)
+```
+
+
+```{r}
+cb_weather_merge_temp<- cb_weather_merge %>%
+  mutate(WEEKDAY = weekdays(DATE)) %>%
+  mutate(WEEK = week(DATE)) %>%
+  mutate(MONTH = month(DATE, label=TRUE))
+
+cb_weather_merge_week <- cb_weather_merge_temp %>%
+  group_by(WEEK) %>%
+  summarise(min_duration=min(min_duration), max_duration =max(max_duration), avg_duration=mean(avg_duration), CB_TRIP_COUNT=sum(CB_TRIP_COUNT), TAVG=mean(TAVG), PRCP=mean(PRCP), SNOW=mean(SNOW))
+
+cb_weather_merge_week[,c('PRCP','CB_TRIP_COUNT','TAVG','SNOW', 'WEEK')] %>% 
+  parcoords(rownames = F , brushMode = "1D-axes", reorderable = T, queue = T, alpha=0.5,
+            color = list(colorBy = "WEEK", colorScale = "scaleOrdinal", colorScheme = "schemeCategory10"),
+            withD3 = TRUE)
+```
+
+
+```{r}
+cb_weather_merge_month <- cb_weather_merge_temp %>%
+  group_by(MONTH) %>%
+  summarise(min_duration=min(min_duration), max_duration =max(max_duration), avg_duration=mean(avg_duration), CB_TRIP_COUNT=sum(CB_TRIP_COUNT), TAVG=mean(TAVG), PRCP=mean(PRCP), SNOW=mean(SNOW))
+
+cb_weather_merge_month[,c('PRCP','CB_TRIP_COUNT','TAVG','SNOW', 'MONTH')] %>% 
+  parcoords(rownames = F , brushMode = "1D-axes", reorderable = T, queue = T, alpha=0.5,
+            color = list(colorBy = "MONTH", colorScale = "scaleOrdinal", colorScheme = "schemeCategory10"),
+            withD3 = TRUE)
+```
+
+
+```{r}
+cb_weather_merge_weekday <- cb_weather_merge_temp %>%
+  group_by(WEEKDAY) %>%
+  summarise(min_duration=min(min_duration), max_duration =max(max_duration), avg_duration=mean(avg_duration), CB_TRIP_COUNT=sum(CB_TRIP_COUNT), TAVG=mean(TAVG), PRCP=mean(PRCP), SNOW=mean(SNOW))
+
+# For complete 2018 at weekday level 
+cb_weather_merge_weekday[,c('PRCP','TAVG','CB_TRIP_COUNT', 'WEEKDAY')] %>% 
+  parcoords(rownames = F , brushMode = "1D-axes", reorderable = T, queue = T, alpha=0.5,
+            color = list(colorBy = "WEEKDAY", colorScale = "scaleOrdinal", colorScheme = "schemeCategory10"),
+            withD3 = TRUE) 
+```
+
+
+
+```{r}
+# For Nov
+cb_weather_merge_nov<- merge(cb_summary_daily_nov, weather_nyc_nov, by="DATE")
+
+cb_weather_merge_nov[,c('TAVG','CB_TRIP_COUNT','PRCP','SNOW','DATE')] %>% 
+  parcoords(rownames = F , brushMode = "1D-axes", reorderable = T, queue = T, alpha=0.5,
+            color = list(colorBy = "DATE", colorScale = "scaleOrdinal", colorScheme = "schemeCategory10"),
+            withD3 = TRUE)
+```
+
+
+Now, let's see how Weather impacts Citibike and Yellowcab ridership together. 
+```{r}
+# Merge Yellowcab, Citibike and Weather
+yc_cb_weather_merge_nov<- merge(cb_weather_merge_nov, yc_summary_daily_nov, by="DATE")
+
+yc_cb_weather_merge_nov[,c('TAVG', 'CB_TRIP_COUNT', 'YC_TRIP_COUNT', 'PRCP', 'DATE')] %>%
+  parcoords(rownames = F , brushMode = "1D-axes", reorderable = T, queue = T, alpha=0.5, scale(std),
+            color = list(colorBy = "DATE", colorScale = "scaleOrdinal", colorScheme = "schemeCategory10"),
+            withD3 = TRUE)
+
+```
+
+
+## 6. Interactive Component
+
+
+## 7. Conclusion
+
+To conclude, our analysis has identified some of the patterns for Weather's impact on Citibike/Yellow Cab ridership. These can be used by New Yorkers to plan their daily routine and even by the tourists visiting the city.
+
+While it was super exciting to work on this project, there were challenges and we have some limitations in our analysis. We have used only one year (2018) of data for Citibike and Weather and only one month (Nov'2018) for Yellowcab as files were huge. To give an idea, each monthly file for Yellowcab is around 750MB in size and contains 8M records. We tried using much bigger dataset with more years of coverage but ran into memory and speed issues. As a result, some of the monthly or seasonal patterns identified may need to re-calibrated against a big dataset.
+
+As an extension to our analysis, we plan to broaden our scope by not just including more years of data but also by augmenting our datasets with additional ridership data from taxi services like Uber & Lyft. It would be nice to get insights how these new age services have changed NYC ridership landscape which was once dominated by iconic Yellow Cab.
+
+Lastly, we would like to thank everyone who helped in making these datasets public so that they can be used in project like ours. Also, a big thanks to Prof. Joyce Robbins for her continuous support and guidance through entire course. Thank You !!
+
