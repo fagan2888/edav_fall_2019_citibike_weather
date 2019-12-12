@@ -235,6 +235,259 @@ ggplot(data=cb_raw_with_age) +
 We read summary datafiles created earlier and further aggregates the data or even merge two or more datesets to help support our analysis to gain some preliminary insights into our questions.
 
 ```{r}
+weather_nyc <- read_csv('https://raw.githubusercontent.com/harish-cu/edav_fall_2019_citibike_weather/master/data/raw/2018_Weather_NYC.csv')
+
+weather_nyc$DATE <- mdy(weather_nyc$DATE)
+
+# Filter for the time period of the analysis
+weather_nyc <- weather_nyc %>% 
+  filter(DATE>='2018-01-01', DATE<'2019-01-01')
+
+# Select the necessary variables
+weather_nyc <- weather_nyc %>% 
+  select('DATE', 'PRCP', 'TAVG', 'TMAX' , 'TMIN', 'SNOW', 'SNWD', 'AWND')
+
+# Check for missing values
+colSums(is.na(weather_nyc)) %>% 
+  sort(decreasing=TRUE)
+
+weather_nyc <- weather_nyc %>% 
+  mutate(month = month(DATE, label=TRUE))
+
+weather_nyc <- weather_nyc %>% 
+  mutate(dow = weekdays(weather_nyc$DATE, abbreviate = TRUE)) %>% 
+  mutate(is_weekend = ifelse(dow=="Sat"|dow=="Sun",1,0)) %>% 
+  mutate(is_sunday = ifelse(dow=="Sun",1,0))
+
+```
+  
+While people are generally familiar with how the weather varies over the year in NYC, we want to set the table before we get into the effect of weather on ridershup. Here,we show the average temperature trend across the entire year of 2018.  
+
+```{r}
+ggplot(weather_nyc, mapping=aes(x=DATE, y=TAVG)) +
+  geom_line() +
+  scale_x_date(date_breaks = '1 month', date_labels = "%b-%Y") +
+  labs(title = "Daily Average Temperature",
+  x = "Date",
+  y = "Average Temperature (Fahrenheit)") +
+  theme(axis.text.x = element_text(angle = 90),
+  plot.title = element_text(hjust = 0.5))
+```
+  
+As expected, the temperatures are the low on the two ends of the graph (during the winter months of January, February, November and December) and high during the summer months (June, July, August and even September). The trend is pretty smooth (if we ignore the short term variations).  
+
+Note that this graph indicates the average daily temperature (temperature averaged across the different hours of the day). As a result, the temperature values on this graph may not be as high as people expect (low night temperatures bring the average for the day down) but this graph provides insight into how the temperature varies through different months of the year  
+
+Here is a look at the average temperature distribution by month. The boxplot helps us compare the median values across the months and also the variability in the average temperatures for each month.  
+
+```{r}
+ggplot(weather_nyc, mapping=aes(x=month, y=TAVG)) +
+  geom_boxplot() +
+  labs(title = "Average Daily Temperature Boxplot by Month",
+  x = "Month",
+  y = "Average Temperature") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+  
+We can clearly see the unimodal trend with the peaks in the summer months. Additionally, we can see that the month of January for 2018 had high variability in the daily average temperature. This is not surprising because of the arctic blast that the US experienced in 2018 that affected the weather for quite a few days. Feel free to check out the article listed here to read more about the arctic blast.  
+
+https://weather.com/storms/winter/news/2018-01-01-arctic-record-cold-outbreak-forecast-midwest-east-south-early-january  
+
+Apart from January, we see that the temperature variation is high in October too. October is one of the transition months that brings us from the summer to the winter, so it isn't very surprising either.  
+
+Similarly, we plot the total precipitation for each day.  
+
+```{r}
+ggplot(weather_nyc, mapping=aes(x=DATE, y=PRCP)) +
+  geom_line() +
+  scale_x_date(date_breaks = '1 month', date_labels = "%b-%Y") +
+  labs(title = "Daily Precipitation",
+  x = "Date",
+  y = "Precipitation (inches)") +
+  theme(axis.text.x = element_text(angle = 90),
+  plot.title = element_text(hjust = 0.5))
+```
+  
+The trend is not as clear over here. We do notice some large spikes in the graph (some months seem to have more than others) and many small spikes (indicating there are a lot of days with slight rain). Let's take a look at the boxplot of daily precipitation across the different months.  
+
+```{r}
+ggplot(weather_nyc, mapping=aes(x=month, y=PRCP)) +
+  geom_boxplot() +
+  labs(title = "Daily Precipitation Boxplot by Month",
+  x = "Month",
+  y = "Precipitation (inches)") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+We see more variation in some months like November and September but most medians are very close to 0, which is expected. There are a lot of outliers we see for rain and this is what we expect from a boxplot of precipitation.  
+It might be more interesting to look at the percentage of days that have rain in each month of 2018. However, for this plot, we only count the days that have at least 0.1 inches of rain.  
+
+```{r}
+weather_month <- weather_nyc %>% 
+  group_by(month) %>% 
+  summarize(num_of_days = n(),
+            avg_temp = mean(TAVG),
+            total_precip = sum(PRCP),
+            precip_days = sum(ifelse(PRCP>=0.1,1,0)),
+            snow_days = sum(ifelse(SNOW>0,1,0)))
+
+ggplot(data=weather_month, mapping=aes(x=month, y=100*precip_days/num_of_days)) +
+  geom_col(fill = "#9FC29F", color = "#80593D") +
+  labs(title = "% of Days with Precipitation (>=0.1 inches) by Month",
+    x = "Month",
+    y = "% Days with Precip (>=0.1 inches)") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+
+It seems that February had the highest % of days with rain greater than 0.1 inches across all months of the year. Note that precipitation includes drizzle, rain, sleet, snow etc.  
+
+Now that we have a good understanding of the two primary weather variables (temperature and precipitation) used in the analysis, we can move onto the citibike ridership data.  
+
+```{r}
+citibike <- read.csv('https://raw.githubusercontent.com/harish-cu/edav_fall_2019_citibike_weather/master/data/clean/2018-citibike-summarydata.csv')
+
+citibike <- citibike %>% 
+  mutate(avg_duration = avg_duration/60,
+         min_duration = min_duration/60,
+         max_duration = max_duration/60)
+
+citibike <- citibike %>% 
+  mutate(Date = as_date(Date))
+
+citibike_agg <- citibike %>% 
+  group_by(Date) %>% 
+  summarise(total_trip_count = sum(trip_count),
+            avg_duration = sum(avg_duration*trip_count)/sum(trip_count))
+
+citibike_weather <- citibike_agg %>% 
+  inner_join(weather_nyc, by=c("Date"="DATE"))
+```
+  
+The very first question we'd like to address is "Does the temperature affect ridership?". Intuitively, it makes sense for us to assume that lower temperatures lead to lower ridership. But how much of a drop do we see? Additionally, will we observe the relationship to be respected at all average temperature ranges?  
+
+To answer, we looked at a boxplot of the Daily Trip Counts by average temperature deciles. Each data point on the X axis in the below plot refers to one decile (approximately equal number of days in each bucket). Note that we have let the labels be the Temperature Range that makes up the decile as opposed to naming them as 1,2, etc in order to make sure the reader is aware of what temperature ranges we are referring to. Additionally, relabeling  manually would make the graph non repeatable on a different time period of data.  
+
+```{r}
+citibike_weather %>% 
+  mutate(deciles_avg_temp = cut(x=TAVG, breaks=c(c(min(citibike_weather$TAVG-1)), quantile(citibike_weather$TAVG, seq(0.1,1, .1), include.lowest=TRUE, right=FALSE)))) %>% 
+  ggplot(mapping=aes(deciles_avg_temp, total_trip_count/1000)) +
+  geom_boxplot() +
+  labs(x="\nAverage Temperature Decile Ranges",
+    y="Daily Trip Count (Thousands)",
+    title="Trip Count by Daily Average Temperature") +
+  theme(plot.title = element_text(size=14, hjust = 0.5))
+```
+  
+We notice quite clearly that the medians of the boxplots indicating ridership increase as we go to higher deciles. However, it seems that after we pass Decile 7 (average temperature range of 62 to 68), we notice that the relationship reverses. As temperature increases the ridership drops. Our initial hypothesis was that the warmer it gets in NYC, the more open people are to use Citibike. However, this is insightful as we notice that people change their behavior not only at low temperatures but also at high temperatures. The drop in ridership in the last 3 Deciles is only small and is not anywhere as close to the increase we see when we go from low to high temperatures but there is a clear trend/relationship change (even if we assume that the riderships stops increasing at higher deciles)  
+
+We can look at a slightly different view to reinforce our understanding of the relationship between average temperature and ridership.  
+
+```{r}
+citibike_weather_tidy <- citibike_weather %>% 
+  select(Date, total_trip_count, TAVG) %>% 
+  mutate(total_trip_count = total_trip_count/1000) %>% 
+  gather(metric, value, -Date)
+
+citibike_weather_tidy %>% 
+ggplot(mapping=aes(x=Date, y=value)) +
+  geom_line() + geom_smooth(method = "lm", formula = y ~ poly(x, 3), se = FALSE, color='black', size=0.5) +
+  facet_wrap(metric~., ncol=1, scales='free_y', 
+             strip.position = "left",
+             labeller = as_labeller(c(TAVG = "Average Temperature", total_trip_count = "Total Trip Count (Thousands)") ) ) +
+  scale_x_date(date_breaks = '1 month', date_labels = "%b-%Y") +
+  labs(title = "Daily Average Temperature and Trip Count",
+  x = "Date",
+  y = "") +
+  theme(axis.text.x = element_text(angle = 90),
+  plot.title = element_text(hjust = 0.5),
+  strip.background = element_blank(),
+ strip.placement = "outside")
+```
+
+This graph clearly demonstrates that the two trends pretty much mirror each other. And intuitively, we can say that the temperature influences ridership.  
+
+The very next question we want to understand is to see if temperature only affects the ride volume or if it affects trip durations as well. Do people only decide against using citibike when it is cold? Or do the people who do ride in colder weather ride for shorter durations?
+
+```{r}
+citibike_weather %>% 
+  mutate(deciles_avg_temp = cut(x=TAVG, breaks=c(c(min(citibike_weather$TAVG-1)), quantile(citibike_weather$TAVG, seq(0.1,1, .1), include.lowest=TRUE, right=FALSE)))) %>% 
+  ggplot(mapping=aes(deciles_avg_temp, avg_duration)) +
+  geom_boxplot(varwidth = TRUE) +
+  labs(x="\nAverage Temperature Deciles",
+    y="Average Trip Duration",
+    title="Average Trip Duration by Daily Average Temperature") +
+  theme(plot.title = element_text(size=14, hjust = 0.5))
+```
+  
+We notice a trend that is quite similar to the trend in temperature. There seems to be a unimodal trend if we observe the medians. The median of the average trip duration increases as it gets warmer and then we see a slight reversal, this time after decile 8 (average temperature range of 68 to 73). So we can say that either the same riders prefer shorter rides on the cold days or we can say that only riders that have shorter trips go on citibike rides on colder days. In the future, if possible, it will be interesting to look at which of the above hypotheses is true.  
+
+The next question we want to look at is to see if precipitation affects ridership. Note that we only have the total precipitation for the day and not precipitation by the hour. So it isn't possible to differentiate between precipitation during the day that might affect ridership and precipitation during the night that might not affect ridership. In other words, we expect that there will be some precipitation days that do not cause a drop in ridership.  
+
+First, let's look at a boxplot of the ridership for days that had no precipitation and compare it with days that had a precipitation of at least 0.01 inches (which is the smallest measurable amount of rain).  
+
+```{r}
+citibike_weather %>% 
+  mutate(precip_day = as.character(ifelse(PRCP>=0.01,"Yes","No"))) %>% 
+  ggplot(mapping=aes(precip_day, total_trip_count/1000)) +
+  geom_boxplot(varwidth = TRUE) +
+  labs(x="\nPrecipitation",
+    y="Total Trip Count (Thousands)",
+    title="Trip Count by Precipitation Bucket") +
+  theme(plot.title = element_text(size=14, hjust = 0.5))
+```
+  
+It's clear that there is a drop in ridership during precipitation days. Now, let's get one level deeper and bucket the days into days with no precipitation, days with precipitation less than a quarter inch, days with precipitation between a quarter and one inch and days with precipitation greater than 1 inch.  
+
+```{r}
+citibike_weather %>% 
+  mutate(deciles_avg_temp = cut(x=PRCP, breaks=c(-Inf,0, 0.25, 1, +Inf))) %>% 
+  ggplot(mapping=aes(deciles_avg_temp, total_trip_count/1000)) +
+  geom_boxplot(varwidth = TRUE) +
+  scale_x_discrete(labels = c("0", "<0.25", "0.25 to 1", ">1")) +
+  labs(x="\nPrecipitation Bucket (Inches)",
+    y="Total Trip Count (Thousands)",
+    title="Trip Count by Precipitation Bucket") +
+  theme(plot.title = element_text(size=14, hjust = 0.5))
+```
+  
+Since we are using a variable width boxplot, the number of data points in the bucket determines the width of the boxplot. We see that a larger portion of the days have no precip and the number of days in each bucket reduces with the increase in precipitation. Additionally and more importantly, we do see there is a consistent drop in ridership as we see more rain. This makes us believe that New Yorkers (or riders in New York) are resilient to the precipitation to an extent.  
+
+Let's mark the sundays (where we've observed low ridership) and the days with high precipitation (over 1 inch) on the line graph of total trip count. We can check if they align with short term drops in ridership.  
+
+```{r}
+citibike_weather_flag <- citibike_weather %>% 
+  mutate(is_precip_flag = ifelse(PRCP>1, total_trip_count, NA)) %>% 
+  mutate(is_weekend_flag = ifelse(is_weekend>0, total_trip_count, NA)) %>% 
+  mutate(is_sunday_flag = ifelse(is_sunday>0, total_trip_count, NA))
+
+citibike_weather_flag_tidy <- citibike_weather_flag %>% 
+  select(Date, is_sunday_flag, is_precip_flag) %>% 
+  gather(metric, value, -Date) %>% 
+  arrange(metric)
+
+ggplot(citibike_weather_flag, mapping=aes(x=Date, y=total_trip_count/1000)) +
+  geom_line() +
+  geom_point(data=citibike_weather_flag_tidy, aes(x=Date, y=value/1000, color=metric), na.rm = TRUE, alpha=1) +
+  scale_x_date(date_breaks = '1 month', date_labels = "%b-%Y") +
+  scale_color_discrete(name = "Day Type", labels = c("Precipitation Day", "Sunday")) +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 5), se = FALSE, color='black', size=0.5) +
+  labs(title = "Citibike Trip Count",
+  x = "Date",
+  y = "Total Trip Count (Thousands)",
+  color = "Day Type") +
+  theme(axis.text.x = element_text(angle = 90),
+  plot.title = element_text(hjust = 0.5),
+  legend.position = "right",
+  legend.title = element_text(size = 12),
+  legend.text = element_text(size=12))
+```
+
+We can see based on the line graph that almost all days with precipitation greater than 1 inch lead to a local drop in ridership. The other local drops seem to be on sundays. This aligns with our earlier findings that precipitation causes an observable drop in ridership  
+
+Note:  
+Since most citibike riders are the ones with annual membership, the total number of subscribers doesn't vary wildly across months. However, it would be interesting to replot some of the above graphs just based on consumers (although we don't expect it to vary by much)
+
+```{r}
 yc_summary_nov = read_csv(file="~/Documents/YellowCab_2018_11_Summary.csv")
 weather_nyc = read_csv(file="~/Documents/2018_Weather_NYC.csv")
 cb_summary = read_csv(file="~/Documents/2018-citibike-summarydata.csv")
