@@ -1,0 +1,3 @@
+Due to the large size of Citibike raw data files they are not included here and can downloaded from below link:
+
+https://www.citibikenyc.com/system-data
