@@ -33,7 +33,7 @@ Bicycling is a widely used form of physical activity. It has been linked to lowe
 3. Rohit Dalal (rd2805)
 4. Venkat Gangireddy (vrg2114)  
 
-All of us collabrated together on formalizing the questions and the overall layout of the project. Three of us were assigned to the discovery, understanding, ingestion and analysis of the appropriate portion of the datasets. Phani ingested and explored Citibike data, Harish worked on the Weather dataset and Rohit focused on ingesting and analyzing Yellow Cab data and putting together final report by working along with others. Venkat worked on the development of the shinny app.
+All of us collabrated together on formalizing the questions and the overall layout of the project. Three of us were assigned to the discovery, understanding, ingestion and analysis of the appropriate portion of the datasets. Phani ingested and explored Citibike data, Harish worked on the Weather dataset and Rohit focused on ingesting and analyzing Yellow Cab data and putting together final report by working along with others. Venkat worked on the development of the Shiny app.
 
 We tried to distribute the project work evenly among all the team members.
 
@@ -83,19 +83,62 @@ Three datasets have been used to support our analysis. In an effort to streamlin
 
 ## 3. Data Transformation
 
+Using raw data files from each source described earlier, below code generates summary data for Yellow Cab, Citibike and Weather. Summary output for each is stored as .csv file, files can be downloaded from our project github repo.
+
 ```{r}
 library(tidyverse)
 library(GGally)
 library(vcd)
 library(extracat)
-library(skimr)
-library(anytime)
-library(grid)
 library(lubridate)
 library(parcoords)
 ``` 
 
-Using raw data files from each source described earlier, below code generates summary data for Yellow Cab, Citibike and Weather. Summary output for each is stored as .csv file, files can be downloaded from our project github repo.
+
+#### Citibike
+
+* Below function reads all monthly citibike raw data files for 2018 and combines them to create summary reports at date and date + gender level. **Code has been commented out while rendering HTML as it takes long time to process large size raw data files.**
+
+```{r}
+# # Summarize the data for the 2018 datasets at the date level.
+# summary <- function(filename){
+#   df_data <- read.csv(file = filename)
+#   df_grp <- df_data %>%
+#   mutate(Date = date(starttime)) %>%
+#   mutate(start.station.id = as.character(start.station.id)) %>%
+#   group_by(Date, start.station.id, start.station.latitude, start.station.longitude) %>%
+#   summarise(min_duration=min(tripduration), max_duration =max(tripduration), avg_duration=mean(tripduration),trip_count=n()) %>%
+#   ungroup() %>%
+#   select(Date, start.station.id, start.station.latitude, start.station.longitude,min_duration,max_duration, avg_duration,trip_count)
+# return(df_grp)
+# }
+# 
+# # Summarize the data for the 2018 datasets at the date and gender level.
+# summary_age <- function(filename){
+#   df_data <- read.csv(file = filename)
+#   df_grp <- df_data %>%
+#   mutate(startDate = as.Date(starttime)) %>%
+#   mutate(date = date(starttime)) %>%
+#   mutate(age = (floor((2018-birth.year)/10))*10 ) %>%
+#   group_by(date, gender, age) %>%
+#   summarise(min_duration=min(tripduration), max_duration =max(tripduration), avg_duration=mean(tripduration),trip_count=n()) %>%
+#   ungroup() %>%
+#   select(date, gender, age,min_duration,max_duration, avg_duration,trip_count)
+# return(df_grp)
+# }
+# 
+# # Directory where raw files are stored
+# mypath = "~/Documents/"
+# filenames <- list.files(path=mypath, full.names=TRUE)
+# 
+# datalist <- lapply(filenames, function(x){summary(x)})
+# datalist1 <- datalist %>% reduce(bind_rows)
+# write.csv(datalist1,'~/Documents/2018-citibike-summarydata.csv')
+# 
+# datalist_age <- lapply(filenames, function(x){summary_age(x)})
+# datalist_age1 <- datalist_age %>% reduce(bind_rows)
+# write.csv(datalist_age1,'~/Documents/2018-citibike-summarydata-age-gender.csv')
+```
 
 
 #### Yellow Cab
@@ -141,52 +184,6 @@ write.csv(df_data_yc_grp, file="~/Documents/YellowCab_2018_11_Summary.csv", row.
 ```
 
 
-#### Citibike
-
-Below function reads all monthly citibike raw data files for 2018 and combines them to create summary reports at date and date + gender level. **Code has been commented out while rendering HTML as it takes long time to process large size raw data files.**
-
-```{r}
-# # Summarize the data for the 2018 datasets at the date level.
-# summary <- function(filename){
-#   df_data <- read.csv(file = filename)
-#   df_grp <- df_data %>%
-#   mutate(Date = date(starttime)) %>%
-#   mutate(start.station.id = as.character(start.station.id)) %>%
-#   group_by(Date, start.station.id, start.station.latitude, start.station.longitude) %>%
-#   summarise(min_duration=min(tripduration), max_duration =max(tripduration), avg_duration=mean(tripduration),trip_count=n()) %>%
-#   ungroup() %>%
-#   select(Date, start.station.id, start.station.latitude, start.station.longitude,min_duration,max_duration, avg_duration,trip_count)
-# return(df_grp)
-# }
-# 
-# # Summarize the data for the 2018 datasets at the date and gender level.
-# summary_age <- function(filename){
-#   df_data <- read.csv(file = filename)
-#   df_grp <- df_data %>%
-#   mutate(startDate = as.Date(starttime)) %>%
-#   mutate(date = date(starttime)) %>%
-#   mutate(age = (floor((2018-birth.year)/10))*10 ) %>%
-#   group_by(date, gender, age) %>%
-#   summarise(min_duration=min(tripduration), max_duration =max(tripduration), avg_duration=mean(tripduration),trip_count=n()) %>%
-#   ungroup() %>%
-#   select(date, gender, age,min_duration,max_duration, avg_duration,trip_count)
-# return(df_grp)
-# }
-# 
-# # Directory where raw files are stored
-# mypath = "~/Documents/"
-# filenames <- list.files(path=mypath, full.names=TRUE)
-# 
-# datalist <- lapply(filenames, function(x){summary(x)})
-# datalist1 <- datalist %>% reduce(bind_rows)
-# write.csv(datalist1,'~/Documents/2018-citibike-summarydata.csv')
-# 
-# datalist_age <- lapply(filenames, function(x){summary_age(x)})
-# datalist_age1 <- datalist_age %>% reduce(bind_rows)
-# write.csv(datalist_age1,'~/Documents/2018-citibike-summarydata-age-gender.csv')
-```
-
-
 #### Weather
 
 * Weather data downloaded from the source is already summarized at daily level, no further action needed. 
@@ -195,6 +192,26 @@ Below function reads all monthly citibike raw data files for 2018 and combines t
 ## 4. Missing Values
 
 For all of the 3 datasets, we **DIDN'T** find any missing values in the raw datafiles obtained from the source. However, we identifed some outliers in the Citibike data related to rider's age.
+
+#### Citibike
+
+```{r}
+cb_raw <- read.csv(file="~/Documents/2018-citibike-tripdata.csv")
+colSums(is.na(cb_raw)) %>% sort(decreasing=TRUE)
+```
+
+* Age Outliers Boxplot
+```{r}
+# Citibike - Age outliers
+cb_raw_with_age <- cb_raw %>%
+  mutate(age = 2018-birth.year)
+
+ggplot(data=cb_raw_with_age) +
+  geom_boxplot(mapping=aes(x="", y=age)) +
+    labs(title = "Age Boxplot of Citibike Riders",
+       x = "",
+       y = "Age")
+```
 
 #### Yellow Cab
 
@@ -210,24 +227,6 @@ weather_raw <- read.csv(file="~/Documents/2018_Weather_NYC.csv")
 colSums(is.na(weather_raw)) %>% sort(decreasing=TRUE)
 ```
 
-#### Citibike
-
-```{r}
-cb_raw <- read.csv(file="~/Documents/2018-citibike-tripdata.csv")
-colSums(is.na(cb_raw)) %>% sort(decreasing=TRUE)
-```
-
-```{r}
-# Citibike - Age outliers
-cb_raw_with_age <- cb_raw %>%
-  mutate(age = 2018-birth.year)
-
-ggplot(data=cb_raw_with_age) +
-  geom_boxplot(mapping=aes(x="", y=age)) +
-    labs(title = "Age Boxplot of Citibike Riders", 
-       x = "", 
-       y = "Age") 
-```
 
 
 ## 5. Results
@@ -247,10 +246,6 @@ weather_nyc <- weather_nyc %>%
 weather_nyc <- weather_nyc %>% 
   select('DATE', 'PRCP', 'TAVG', 'TMAX' , 'TMIN', 'SNOW', 'SNWD', 'AWND')
 
-# Check for missing values
-colSums(is.na(weather_nyc)) %>% 
-  sort(decreasing=TRUE)
-
 weather_nyc <- weather_nyc %>% 
   mutate(month = month(DATE, label=TRUE))
 
@@ -258,7 +253,6 @@ weather_nyc <- weather_nyc %>%
   mutate(dow = weekdays(weather_nyc$DATE, abbreviate = TRUE)) %>% 
   mutate(is_weekend = ifelse(dow=="Sat"|dow=="Sun",1,0)) %>% 
   mutate(is_sunday = ifelse(dow=="Sun",1,0))
-
 ```
   
 While people are generally familiar with how the weather varies over the year in NYC, we want to set the table before we get into the effect of weather on ridershup. Here,we show the average temperature trend across the entire year of 2018.  
@@ -454,7 +448,7 @@ Since we are using a variable width boxplot, the number of data points in the bu
 
 Let's mark the sundays (where we've observed low ridership) and the days with high precipitation (over 1 inch) on the line graph of total trip count. We can check if they align with short term drops in ridership.  
 
-```{r}
+```{r, fig.width=10}
 citibike_weather_flag <- citibike_weather %>% 
   mutate(is_precip_flag = ifelse(PRCP>1, total_trip_count, NA)) %>% 
   mutate(is_weekend_flag = ifelse(is_weekend>0, total_trip_count, NA)) %>% 
@@ -487,124 +481,56 @@ We can see based on the line graph that almost all days with precipitation great
 Note:  
 Since most citibike riders are the ones with annual membership, the total number of subscribers doesn't vary wildly across months. However, it would be interesting to replot some of the above graphs just based on consumers (although we don't expect it to vary by much)
 
-```{r}
-yc_summary_nov = read_csv(file="~/Documents/YellowCab_2018_11_Summary.csv")
-weather_nyc = read_csv(file="~/Documents/2018_Weather_NYC.csv")
-cb_summary = read_csv(file="~/Documents/2018-citibike-summarydata.csv")
 
-names(yc_summary_nov)[1]<-"DATE"
-names(cb_summary)[2]<-"DATE"
+## 6. Interactive Component
 
-weather_nyc$DATE <- mdy(weather_nyc$DATE)
-
-weather_nyc <- weather_nyc %>% select('DATE', 'PRCP', 'TAVG', 'TMAX' , 'TMIN', 'SNOW', 'SNWD', 'AWND')
-weather_nyc_nov <- weather_nyc %>% filter(DATE>=as.Date('2018-11-01') & DATE< as.Date('2018-12-01'))
-
-# Further aggregate the KPIs at Date Level for Yellow Cab Nov Summary data
-# Yellow Cab
-yc_summary_nov <- yc_summary_nov %>% 
-  mutate(avg_duration = avg_duration/60,min_duration = min_duration/60,max_duration = max_duration/60);
-
-yc_summary_daily_nov <- yc_summary_nov %>%
-  group_by(DATE) %>%
-  summarise(min_duration=min(min_duration), max_duration =max(max_duration), avg_duration=mean(avg_duration), YC_TRIP_COUNT=sum(yc_trip_count))
-
-# Further aggregate the KPIs at Date Level for Citibike
-# Citibike
-cb_summary <- cb_summary %>% 
-  mutate(avg_duration = avg_duration/60,min_duration = min_duration/60,max_duration = max_duration/60);
-
-# For entire 2018
-cb_summary_daily <- cb_summary %>%
-  group_by(DATE) %>%
-  summarise(min_duration=min(min_duration), max_duration =max(max_duration), avg_duration=mean(avg_duration), CB_TRIP_COUNT=sum(trip_count))
-
-# For Nov
-cb_summary_daily_nov <- cb_summary %>% 
-  filter(DATE>=as.Date('2018-11-01') & DATE< as.Date('2018-12-01')) %>%
-  group_by(DATE) %>%
-  summarise(min_duration=min(min_duration), max_duration =max(max_duration), avg_duration=mean(avg_duration), CB_TRIP_COUNT=sum(trip_count))
-```
-
-
+We have used parallel cooridinate plot to interactively understand the relationship between multiple weather variables and ridership together.
 
 ```{r}
-# Merge Citibike & Weather Data
-cb_weather_merge<- merge(cb_summary_daily, weather_nyc, by="DATE")
+citibike_weather_temp<- citibike_weather %>% mutate(WEEK = week(Date))
+names(citibike_weather_temp)[2]<-"CB_TRIP_COUNT"
 
-cb_weather_merge[,c('PRCP','CB_TRIP_COUNT','TAVG','SNOW')] %>% 
-  parcoords(rownames = F , brushMode = "1D-axes", reorderable = T, queue = T, alpha=0.5)
-```
-
-
-```{r}
-cb_weather_merge_temp<- cb_weather_merge %>%
-  mutate(WEEKDAY = weekdays(DATE)) %>%
-  mutate(WEEK = week(DATE)) %>%
-  mutate(MONTH = month(DATE, label=TRUE))
-
-cb_weather_merge_week <- cb_weather_merge_temp %>%
+citibike_weather_temp <- citibike_weather_temp %>%
   group_by(WEEK) %>%
-  summarise(min_duration=min(min_duration), max_duration =max(max_duration), avg_duration=mean(avg_duration), CB_TRIP_COUNT=sum(CB_TRIP_COUNT), TAVG=mean(TAVG), PRCP=mean(PRCP), SNOW=mean(SNOW))
+  summarise(CB_TRIP_COUNT=sum(CB_TRIP_COUNT), TAVG=mean(TAVG), PRCP=mean(PRCP), SNOW=mean(SNOW))
 
-cb_weather_merge_week[,c('PRCP','CB_TRIP_COUNT','TAVG','SNOW', 'WEEK')] %>% 
+citibike_weather_temp[,c('PRCP','CB_TRIP_COUNT','TAVG','SNOW', 'WEEK')] %>% 
   parcoords(rownames = F , brushMode = "1D-axes", reorderable = T, queue = T, alpha=0.5,
             color = list(colorBy = "WEEK", colorScale = "scaleOrdinal", colorScheme = "schemeCategory10"),
             withD3 = TRUE)
 ```
 
+Some of our earlier findings are further solidified using parallel coordinate plot as now we can see multivariable relationships. We have grouped the data at the weekly level. Crossing lines between CB_TRIP_COUNT and TAVG when average temperature is on the higher side indicates drop in ridership as temperature rises, which is as per expectation. Similarly, Weeks with low average temperature shows low ridership but as temperature becomes favorable, we can see a positive correlation and ridership rises. Weeks with high precipitation and snow see big drop in ridership.
+
+
+Now, let's check and try to understand how weather changes affects Citibike and Yellowcab ridership simultaneously. Does adverse weather leads to drop in citibike rides and increae in Yellowcab rides as people might prefer to commute in a car rather in open ? Also, as weather becomes more favorable does the trend changes relatively ?
 
 ```{r}
-cb_weather_merge_month <- cb_weather_merge_temp %>%
-  group_by(MONTH) %>%
-  summarise(min_duration=min(min_duration), max_duration =max(max_duration), avg_duration=mean(avg_duration), CB_TRIP_COUNT=sum(CB_TRIP_COUNT), TAVG=mean(TAVG), PRCP=mean(PRCP), SNOW=mean(SNOW))
+yc_summary_nov <- read.csv('https://raw.githubusercontent.com/harish-cu/edav_fall_2019_citibike_weather/master/data/clean/YellowCab_2018_11_Summary.csv')
 
-cb_weather_merge_month[,c('PRCP','CB_TRIP_COUNT','TAVG','SNOW', 'MONTH')] %>% 
-  parcoords(rownames = F , brushMode = "1D-axes", reorderable = T, queue = T, alpha=0.5,
-            color = list(colorBy = "MONTH", colorScale = "scaleOrdinal", colorScheme = "schemeCategory10"),
-            withD3 = TRUE)
-```
+names(yc_summary_nov)[1]<-"DATE"
+yc_summary_nov <- yc_summary_nov %>% mutate(DATE = as_date(DATE))
 
+# Aggregate the KPIs at Date Level for Yellow Cab Nov Summary data
+yc_summary_daily_nov <- yc_summary_nov %>%
+  mutate(avg_duration = avg_duration/60,min_duration = min_duration/60,max_duration = max_duration/60) %>%
+  group_by(DATE) %>%
+  summarise(min_duration=min(min_duration), max_duration =max(max_duration), avg_duration=mean(avg_duration), YC_TRIP_COUNT=sum(yc_trip_count))
 
-```{r}
-cb_weather_merge_weekday <- cb_weather_merge_temp %>%
-  group_by(WEEKDAY) %>%
-  summarise(min_duration=min(min_duration), max_duration =max(max_duration), avg_duration=mean(avg_duration), CB_TRIP_COUNT=sum(CB_TRIP_COUNT), TAVG=mean(TAVG), PRCP=mean(PRCP), SNOW=mean(SNOW))
+citibike_weather_nov <- citibike_weather %>% filter(Date>=as.Date('2018-11-01') & Date< as.Date('2018-12-01'))
+names(citibike_weather_nov)[1]<-"DATE"
+names(citibike_weather_nov)[2]<-"CB_TRIP_COUNT"
 
-# For complete 2018 at weekday level 
-cb_weather_merge_weekday[,c('PRCP','TAVG','CB_TRIP_COUNT', 'WEEKDAY')] %>% 
-  parcoords(rownames = F , brushMode = "1D-axes", reorderable = T, queue = T, alpha=0.5,
-            color = list(colorBy = "WEEKDAY", colorScale = "scaleOrdinal", colorScheme = "schemeCategory10"),
-            withD3 = TRUE) 
-```
-
-
-
-```{r}
-# For Nov
-cb_weather_merge_nov<- merge(cb_summary_daily_nov, weather_nyc_nov, by="DATE")
-
-cb_weather_merge_nov[,c('TAVG','CB_TRIP_COUNT','PRCP','SNOW','DATE')] %>% 
-  parcoords(rownames = F , brushMode = "1D-axes", reorderable = T, queue = T, alpha=0.5,
-            color = list(colorBy = "DATE", colorScale = "scaleOrdinal", colorScheme = "schemeCategory10"),
-            withD3 = TRUE)
-```
-
-
-Now, let's see how Weather impacts Citibike and Yellowcab ridership together. 
-```{r}
 # Merge Yellowcab, Citibike and Weather
-yc_cb_weather_merge_nov<- merge(cb_weather_merge_nov, yc_summary_daily_nov, by="DATE")
+yc_cb_weather_merge_nov<- merge(citibike_weather_nov, yc_summary_daily_nov, by="DATE")
 
-yc_cb_weather_merge_nov[,c('TAVG', 'CB_TRIP_COUNT', 'YC_TRIP_COUNT', 'PRCP', 'DATE')] %>%
-  parcoords(rownames = F , brushMode = "1D-axes", reorderable = T, queue = T, alpha=0.5, scale(std),
+yc_cb_weather_merge_nov[,c('TAVG', 'CB_TRIP_COUNT', 'YC_TRIP_COUNT', 'PRCP', 'SNOW', 'DATE')] %>%
+  parcoords(rownames = F , brushMode = "1D-axes", reorderable = T, queue = T, alpha=0.5,
             color = list(colorBy = "DATE", colorScale = "scaleOrdinal", colorScheme = "schemeCategory10"),
             withD3 = TRUE)
-
 ```
 
 
-## 6. Interactive Component
 
 
 ## 7. Conclusion
