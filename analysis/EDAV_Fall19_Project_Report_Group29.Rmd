@@ -94,7 +94,6 @@ library(lubridate)
 library(parcoords)
 ``` 
 
-
 #### Citibike
 
 * Below function reads all monthly citibike raw data files for 2018 and combines them to create summary reports at date and date + gender level. **Code has been commented out while rendering HTML as it takes long time to process large size raw data files.**
@@ -210,7 +209,8 @@ ggplot(data=cb_raw_with_age) +
   geom_boxplot(mapping=aes(x="", y=age)) +
     labs(title = "Age Boxplot of Citibike Riders",
        x = "",
-       y = "Age")
+       y = "Age") +
+  theme(plot.title = element_text(hjust = 0.5))
 ```
 
 #### Yellow Cab
@@ -316,7 +316,7 @@ ggplot(weather_nyc, mapping=aes(x=month, y=PRCP)) +
 We see more variation in some months like November and September but most medians are very close to 0, which is expected. There are a lot of outliers we see for rain and this is what we expect from a boxplot of precipitation.  
 It might be more interesting to look at the percentage of days that have rain in each month of 2018. However, for this plot, we only count the days that have at least 0.1 inches of rain.  
 
-```{r, fig.align='center', fig.height=6, fig.width=8}
+```{r, fig.align='center', fig.height=5, fig.width=6}
 weather_month <- weather_nyc %>% 
   group_by(month) %>% 
   summarize(num_of_days = n(),
@@ -478,13 +478,53 @@ ggplot(citibike_weather_flag, mapping=aes(x=Date, y=total_trip_count/1000)) +
 
 We can see based on the line graph that almost all days with precipitation greater than 1 inch lead to a local drop in ridership. The other local drops seem to be on sundays. This aligns with our earlier findings that precipitation causes an observable drop in ridership  
 
+Let us take a brief look at the average trip duration for each decile of temperature, but now broken out by gender. We are interested to see if there is a relationship between trip duration and gender.  
+
+```{r, fig.align='center', fig.height=6, fig.width=8}
+gender <- read_csv('https://raw.githubusercontent.com/harish-cu/edav_fall_2019_citibike_weather/master/data/clean/2018-citibike-summarydata-age-gender.csv')
+
+gender <- gender %>% 
+  mutate(avg_duration = avg_duration/60,
+         min_duration = min_duration/60,
+         max_duration = max_duration/60)
+
+gender_grouped <- gender %>% group_by(date, gender) %>% 
+  summarise(total_trip_count = sum(trip_count),
+            avg_duration = sum(avg_duration*trip_count)/sum(trip_count)) %>% 
+  filter(gender!=0) %>% 
+  mutate(gender=ifelse(gender==1, "Male", "Female"))
+
+gender_grouped <- gender_grouped %>% 
+  inner_join(weather_nyc, by=c("date"="DATE"))
+
+# Removing the outliers (incorrect values)
+gender_grouped <- gender_grouped %>% filter(avg_duration<=34.09736)
+
+gender_grouped %>% 
+  mutate(deciles_avg_temp = cut(x=TAVG, breaks=c(c(min(gender_grouped$TAVG-1)), quantile(gender_grouped$TAVG, seq(0.1,1, .1), include.lowest=TRUE, right=FALSE)))) %>% 
+  group_by(gender, deciles_avg_temp) %>% 
+  summarise(avg_duration = sum(avg_duration*total_trip_count)/sum(total_trip_count)) %>% 
+  ggplot(x, mapping=aes(deciles_avg_temp, avg_duration, group=gender)) +
+  geom_line(aes(color=gender)) +
+  labs(x="\nAverage Temperature Decile Ranges",
+    y="Average Trip Duration",
+    title="Average Trip Duration by Daily Average Temperature",
+    color="Gender") +
+  theme(plot.title = element_text(size=14, hjust = 0.5))
+
+```
+  
+From the earlier analysis we performed, we noticed that Male riders outnumber Female riders. Even though men have more Citi bike trips, women tend to take out bikes for longer durations. We are not certain about the cause of this difference - there are quite a few possibilities that we could explore. For ex: do women go on more leisure/fitness rides than men? Do men cycle faster than women? In the future we may try to answer these question as well.
+
+More importantly, we see that the gap between the two lines (Female and Male) increases with higher deciles. In other words, during warmer days, women tend to increase their trip duration more than men do.
+
 Note:  
 Since most citibike riders are the ones with annual membership, the total number of subscribers doesn't vary wildly across months. However, it would be interesting to replot some of the above graphs just based on consumers (although we don't expect it to vary by much)
 
 
 ## 6. Interactive Component
 
-We have used parallel cooridinate plot to interactively understand the relationship between multiple weather variables and ridership together.
+We have used parallel cooridinate plot to interactively understand the relationship between multiple weather variables and citibike ridership together.
 
 ```{r,fig.align='center', fig.height=6, fig.width=8}
 citibike_weather_temp<- citibike_weather %>% mutate(WEEK = week(Date))
@@ -530,6 +570,8 @@ yc_cb_weather_merge_nov[,c('TAVG', 'CB_TRIP_COUNT', 'YC_TRIP_COUNT', 'PRCP', 'SN
             withD3 = TRUE)
 ```
 
+As we can see, when average temperature in on the lower side (in 40s), riders preference for Yellow cabs is much higher compared to Citibikes and this is expected. But as weather becomes favorable, even though overall Yellow cab riders are on the higher side but relatively the gap between the two shrinks. We can see trend where demand for Citibikes rises and yellow cab decreases. Also, on the rainy and snowy days, as expected demand of Yellow Cabs are relatively higher compared to Citibikes.
+
 
 Additionally, we have created a Shiny Dashboard that allows the user to explore the bike readership patterns interactively. We believe the user will be able to appreciate the effects of weather on ridership through a discovery process embedded inside the app. Here is the link to the app:
 
@@ -540,15 +582,19 @@ https://vgangireddy.shinyapps.io/EDAVShinyWeb/
 
 To conclude, our analysis has identified some of the patterns for Weather's impact on Citibike/Yellow Cab ridership. These can be used by New Yorkers to plan their daily routine and even by the tourists visiting the city.
 
+***Key Takeaways:***
+
+* There are many more rides in the summer than in the winter. It is not surprising as commuters tend to prefer a more comfortable mode of transportation when it’s cold.
+
+* The relationship between bike ridership and weather could be described as non-linear.  The ridership is less during the colder days as expected. Our initial hypothesis was that the warmer it gets in NYC, the more open people are to use Citibike. However, it is to be noted that people change their behavior not only at low temperatures but also at high temperatures. We saw a similar pattern in average duration where trip duration increases during warmer days and the pattern reverses slightly in the last couple of deciles of temperatures.
+
+* Ridership decreases as the precipitation increased. However, the drop in ridership is significantly higher when the precipitation is >1, suggesting that NYC riders are resilient to the precipitation to an extent.
+
+* We noticed that women have longer average trip durations. Moreover, we see that during warmer days, women tend to increase their trip duration more than men do.
+
+* When the Citi bike ridership is reviewed together with Yellow cab data, it is found that the relative ridership on Yellow cabs has increased on colder days with temperatures below 35'F and on rainy days.
+
 While it was super exciting to work on this project, there were challenges and we have some limitations in our analysis. We have used only one year (2018) of data for Citibike and Weather and only one month (Nov'2018) for Yellowcab as files were huge. To give an idea, each monthly file for Yellowcab is around 750MB in size and contains 8M records. We tried using much bigger dataset with more years of coverage but ran into memory and speed issues. As a result, some of the monthly or seasonal patterns identified may need to re-calibrated against a big dataset.
-
-Our analysis indicate that there are many more riders in the summer than in winter. It is not surprising as commuters tend to prefer safer mode of transportation when it’s freezing cold.  This got us to dig deep into the impact of weather on bike and taxi ridership in NYC.
-
-The relationship between bike ridership and weather could be described as non-linear.  The ridership is less during the colder days as expected. Our initial hypothesis was that the warmer it gets in NYC, the more open people are to use Citibike. However, it is to be noted that people change their behavior not only at low temperatures but also at high temperatures. We saw a similar pattern in average duration where trip duration increases during warmer days and pattern reverse slightly in the last decile of temperatures.
-
-We also noticed that the ridership has decreased as the precipitation increased. However the drop in ridership is significantly higher when the precipitation is >1, suggesting that NYC riders are resilient to the precipitation to an extent.
-
-When the Citi bike ridership is reviewed together with Yellow cab data, it is found that the relative ridership on Yellow cabs has increased on colder days with temperatures below 35'F and on rainy days.
 
 As an extension to our analysis, we plan to broaden our scope by not just including more years of data but also by augmenting our datasets with additional ridership data from taxi services like Uber & Lyft. It would be nice to get insights how these new age services have changed NYC ridership landscape which was once dominated by iconic Yellow Cab.
 
