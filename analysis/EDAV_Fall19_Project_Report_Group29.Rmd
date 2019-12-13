@@ -200,8 +200,8 @@ cb_raw <- read.csv(file="~/Documents/2018-citibike-tripdata.csv")
 colSums(is.na(cb_raw)) %>% sort(decreasing=TRUE)
 ```
 
-* Age Outliers Boxplot
-```{r}
+**Age Outliers Boxplot**
+```{r, fig.align='center', fig.height=5, fig.width=4}
 # Citibike - Age outliers
 cb_raw_with_age <- cb_raw %>%
   mutate(age = 2018-birth.year)
@@ -233,7 +233,7 @@ colSums(is.na(weather_raw)) %>% sort(decreasing=TRUE)
 
 We read summary datafiles created earlier and further aggregates the data or even merge two or more datesets to help support our analysis to gain some preliminary insights into our questions.
 
-```{r}
+```{r, fig.align='center', fig.height=6, fig.width=8}
 weather_nyc <- read_csv('https://raw.githubusercontent.com/harish-cu/edav_fall_2019_citibike_weather/master/data/raw/2018_Weather_NYC.csv')
 
 weather_nyc$DATE <- mdy(weather_nyc$DATE)
@@ -257,7 +257,7 @@ weather_nyc <- weather_nyc %>%
   
 While people are generally familiar with how the weather varies over the year in NYC, we want to set the table before we get into the effect of weather on ridershup. Here,we show the average temperature trend across the entire year of 2018.  
 
-```{r}
+```{r, fig.align='center', fig.height=6, fig.width=8}
 ggplot(weather_nyc, mapping=aes(x=DATE, y=TAVG)) +
   geom_line() +
   scale_x_date(date_breaks = '1 month', date_labels = "%b-%Y") +
@@ -274,7 +274,7 @@ Note that this graph indicates the average daily temperature (temperature averag
 
 Here is a look at the average temperature distribution by month. The boxplot helps us compare the median values across the months and also the variability in the average temperatures for each month.  
 
-```{r}
+```{r, fig.align='center', fig.height=6, fig.width=8}
 ggplot(weather_nyc, mapping=aes(x=month, y=TAVG)) +
   geom_boxplot() +
   labs(title = "Average Daily Temperature Boxplot by Month",
@@ -291,7 +291,7 @@ Apart from January, we see that the temperature variation is high in October too
 
 Similarly, we plot the total precipitation for each day.  
 
-```{r}
+```{r, fig.align='center', fig.height=6, fig.width=8}
 ggplot(weather_nyc, mapping=aes(x=DATE, y=PRCP)) +
   geom_line() +
   scale_x_date(date_breaks = '1 month', date_labels = "%b-%Y") +
@@ -304,7 +304,7 @@ ggplot(weather_nyc, mapping=aes(x=DATE, y=PRCP)) +
   
 The trend is not as clear over here. We do notice some large spikes in the graph (some months seem to have more than others) and many small spikes (indicating there are a lot of days with slight rain). Let's take a look at the boxplot of daily precipitation across the different months.  
 
-```{r}
+```{r, fig.align='center', fig.height=6, fig.width=8}
 ggplot(weather_nyc, mapping=aes(x=month, y=PRCP)) +
   geom_boxplot() +
   labs(title = "Daily Precipitation Boxplot by Month",
@@ -316,7 +316,7 @@ ggplot(weather_nyc, mapping=aes(x=month, y=PRCP)) +
 We see more variation in some months like November and September but most medians are very close to 0, which is expected. There are a lot of outliers we see for rain and this is what we expect from a boxplot of precipitation.  
 It might be more interesting to look at the percentage of days that have rain in each month of 2018. However, for this plot, we only count the days that have at least 0.1 inches of rain.  
 
-```{r}
+```{r, fig.align='center', fig.height=6, fig.width=8}
 weather_month <- weather_nyc %>% 
   group_by(month) %>% 
   summarize(num_of_days = n(),
@@ -361,7 +361,7 @@ The very first question we'd like to address is "Does the temperature affect rid
 
 To answer, we looked at a boxplot of the Daily Trip Counts by average temperature deciles. Each data point on the X axis in the below plot refers to one decile (approximately equal number of days in each bucket). Note that we have let the labels be the Temperature Range that makes up the decile as opposed to naming them as 1,2, etc in order to make sure the reader is aware of what temperature ranges we are referring to. Additionally, relabeling  manually would make the graph non repeatable on a different time period of data.  
 
-```{r}
+```{r, fig.align='center', fig.height=6, fig.width=8}
 citibike_weather %>% 
   mutate(deciles_avg_temp = cut(x=TAVG, breaks=c(c(min(citibike_weather$TAVG-1)), quantile(citibike_weather$TAVG, seq(0.1,1, .1), include.lowest=TRUE, right=FALSE)))) %>% 
   ggplot(mapping=aes(deciles_avg_temp, total_trip_count/1000)) +
@@ -376,7 +376,7 @@ We notice quite clearly that the medians of the boxplots indicating ridership in
 
 We can look at a slightly different view to reinforce our understanding of the relationship between average temperature and ridership.  
 
-```{r}
+```{r, fig.align='center', fig.height=8, fig.width=8}
 citibike_weather_tidy <- citibike_weather %>% 
   select(Date, total_trip_count, TAVG) %>% 
   mutate(total_trip_count = total_trip_count/1000) %>% 
@@ -402,7 +402,7 @@ This graph clearly demonstrates that the two trends pretty much mirror each othe
 
 The very next question we want to understand is to see if temperature only affects the ride volume or if it affects trip durations as well. Do people only decide against using citibike when it is cold? Or do the people who do ride in colder weather ride for shorter durations?
 
-```{r}
+```{r, fig.align='center', fig.height=6, fig.width=8}
 citibike_weather %>% 
   mutate(deciles_avg_temp = cut(x=TAVG, breaks=c(c(min(citibike_weather$TAVG-1)), quantile(citibike_weather$TAVG, seq(0.1,1, .1), include.lowest=TRUE, right=FALSE)))) %>% 
   ggplot(mapping=aes(deciles_avg_temp, avg_duration)) +
@@ -419,7 +419,7 @@ The next question we want to look at is to see if precipitation affects ridershi
 
 First, let's look at a boxplot of the ridership for days that had no precipitation and compare it with days that had a precipitation of at least 0.01 inches (which is the smallest measurable amount of rain).  
 
-```{r}
+```{r, fig.align='center', fig.height=6, fig.width=4}
 citibike_weather %>% 
   mutate(precip_day = as.character(ifelse(PRCP>=0.01,"Yes","No"))) %>% 
   ggplot(mapping=aes(precip_day, total_trip_count/1000)) +
@@ -432,7 +432,7 @@ citibike_weather %>%
   
 It's clear that there is a drop in ridership during precipitation days. Now, let's get one level deeper and bucket the days into days with no precipitation, days with precipitation less than a quarter inch, days with precipitation between a quarter and one inch and days with precipitation greater than 1 inch.  
 
-```{r}
+```{r, fig.align='center', fig.height=6, fig.width=8}
 citibike_weather %>% 
   mutate(deciles_avg_temp = cut(x=PRCP, breaks=c(-Inf,0, 0.25, 1, +Inf))) %>% 
   ggplot(mapping=aes(deciles_avg_temp, total_trip_count/1000)) +
@@ -448,7 +448,7 @@ Since we are using a variable width boxplot, the number of data points in the bu
 
 Let's mark the sundays (where we've observed low ridership) and the days with high precipitation (over 1 inch) on the line graph of total trip count. We can check if they align with short term drops in ridership.  
 
-```{r, fig.width=10}
+```{r, fig.align='center', fig.height=6, fig.width=10}
 citibike_weather_flag <- citibike_weather %>% 
   mutate(is_precip_flag = ifelse(PRCP>1, total_trip_count, NA)) %>% 
   mutate(is_weekend_flag = ifelse(is_weekend>0, total_trip_count, NA)) %>% 
@@ -486,7 +486,7 @@ Since most citibike riders are the ones with annual membership, the total number
 
 We have used parallel cooridinate plot to interactively understand the relationship between multiple weather variables and ridership together.
 
-```{r}
+```{r,fig.align='center', fig.height=6, fig.width=8}
 citibike_weather_temp<- citibike_weather %>% mutate(WEEK = week(Date))
 names(citibike_weather_temp)[2]<-"CB_TRIP_COUNT"
 
@@ -505,7 +505,7 @@ Some of our earlier findings are further solidified using parallel coordinate pl
 
 Now, let's check and try to understand how weather changes affects Citibike and Yellowcab ridership simultaneously. Does adverse weather leads to drop in citibike rides and increae in Yellowcab rides as people might prefer to commute in a car rather in open ? Also, as weather becomes more favorable does the trend changes relatively ?
 
-```{r}
+```{r, fig.align='center', fig.height=6, fig.width=8}
 yc_summary_nov <- read.csv('https://raw.githubusercontent.com/harish-cu/edav_fall_2019_citibike_weather/master/data/clean/YellowCab_2018_11_Summary.csv')
 
 names(yc_summary_nov)[1]<-"DATE"
@@ -531,10 +531,9 @@ yc_cb_weather_merge_nov[,c('TAVG', 'CB_TRIP_COUNT', 'YC_TRIP_COUNT', 'PRCP', 'SN
 ```
 
 
-
+Additionally, we have created a Shiny Dashboard that allows the user to explore the bike readership patterns interactively. We believe the user will be able to appreciate the effects of weather on ridership through a discovery process embedded inside the app. Here is the link to the app:
 
 https://vgangireddy.shinyapps.io/EDAVShinyWeb/
-
 
 
 ## 7. Conclusion
