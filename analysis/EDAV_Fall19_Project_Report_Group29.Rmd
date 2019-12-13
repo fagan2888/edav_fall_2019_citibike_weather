@@ -533,11 +533,23 @@ yc_cb_weather_merge_nov[,c('TAVG', 'CB_TRIP_COUNT', 'YC_TRIP_COUNT', 'PRCP', 'SN
 
 
 
+https://vgangireddy.shinyapps.io/EDAVShinyWeb/
+
+
+
 ## 7. Conclusion
 
 To conclude, our analysis has identified some of the patterns for Weather's impact on Citibike/Yellow Cab ridership. These can be used by New Yorkers to plan their daily routine and even by the tourists visiting the city.
 
 While it was super exciting to work on this project, there were challenges and we have some limitations in our analysis. We have used only one year (2018) of data for Citibike and Weather and only one month (Nov'2018) for Yellowcab as files were huge. To give an idea, each monthly file for Yellowcab is around 750MB in size and contains 8M records. We tried using much bigger dataset with more years of coverage but ran into memory and speed issues. As a result, some of the monthly or seasonal patterns identified may need to re-calibrated against a big dataset.
+
+Our analysis indicate that there are many more riders in the summer than in winter. It is not surprising as commuters tend to prefer safer mode of transportation when it’s freezing cold.  This got us to dig deep into the impact of weather on bike and taxi ridership in NYC.
+
+The relationship between bike ridership and weather could be described as non-linear.  The ridership is less during the colder days as expected. Our initial hypothesis was that the warmer it gets in NYC, the more open people are to use Citibike. However, it is to be noted that people change their behavior not only at low temperatures but also at high temperatures. We saw a similar pattern in average duration where trip duration increases during warmer days and pattern reverse slightly in the last decile of temperatures.
+
+We also noticed that the ridership has decreased as the precipitation increased. However the drop in ridership is significantly higher when the precipitation is >1, suggesting that NYC riders are resilient to the precipitation to an extent.
+
+When the Citi bike ridership is reviewed together with Yellow cab data, it is found that the relative ridership on Yellow cabs has increased on colder days with temperatures below 35'F and on rainy days.
 
 As an extension to our analysis, we plan to broaden our scope by not just including more years of data but also by augmenting our datasets with additional ridership data from taxi services like Uber & Lyft. It would be nice to get insights how these new age services have changed NYC ridership landscape which was once dominated by iconic Yellow Cab.
 
